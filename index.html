@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sneha Mobile Recharge System</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.5/xlsx.full.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      width: 400px;
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    .form-container {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin: 10px 0 5px;
+    }
+
+    input, select, button {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    button {
+      background-color: #28a745;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #218838;
+    }
+
+    #paymentForm {
+      display: none;
+      margin-top: 20px;
+    }
+
+    #paymentStatus {
+      display: none;
+      margin-top: 20px;
+      color: green;
+      font-weight: bold;
+    }
+
+    #goBack {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    #goBack:hover {
+      background-color: #0056b3;
+    }
+
+    .error-message {
+      color: red;
+      font-size: 14px;
+      margin-top: 5px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th, td {
+      padding: 10px;
+      border: 1px solid #ddd;
+      text-align: center;
+    }
+
+    th {
+      background-color: #f8f9fa;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Sneha Mobile Recharge System</h1>
+
+    <!-- Recharge Form -->
+    <div class="form-container">
+      <h2>Recharge Now</h2>
+      <form id="rechargeForm">
+        <label for="mobileNumber">Mobile Number:</label>
+        <input type="text" id="mobileNumber" placeholder="Enter mobile number" required>
+        <div id="mobileError" class="error-message"></div>
+
+        <label for="operator">Select Operator:</label>
+        <select id="operator" required>
+          <option value="">Choose an operator</option>
+          <option value="Airtel">Airtel</option>
+          <option value="Jio">Jio</option>
+          <option value="Vi">Vi</option>
+          <option value="BSNL">BSNL</option>
+        </select>
+        <div id="operatorError" class="error-message"></div>
+
+        <label for="plan">Select Plan:</label>
+        <select id="plan" required>
+          <option value="">Choose a plan</option>
+          <!-- Plans will be dynamically added by JavaScript -->
+        </select>
+        <div id="planError" class="error-message"></div>
+
+        <button type="submit">Pay</button>
+      </form>
+    </div>
+
+    <!-- Payment Form -->
+    <div id="paymentForm">
+      <h2>Payment Gateway</h2>
+      <form id="upiForm">
+        <label for="upiPin">Enter UPI PIN:</label>
+        <input type="password" id="upiPin" placeholder="Enter UPI PIN" required>
+        <div id="upiError" class="error-message"></div>
+        <button type="submit">Submit</button>
+      </form>
+    </div>
+
+    <!-- Payment Status Message -->
+    <div id="paymentStatus">
+      <p id="statusMessage"></p>
+      <button id="goBack">Go Back to Recharge</button>
+    </div>
+
+    <!-- Transaction History -->
+    <div class="history-container">
+      <h2>Transaction History</h2>
+      <button id="downloadHistory">Download History</button>
+      <table id="transactionHistory">
+        <thead>
+          <tr>
+            <th>Mobile Number</th>
+            <th>Operator</th>
+            <th>Plan</th>
+            <th>Amount</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Transactions will be dynamically added by JavaScript -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // Sample Recharge Plans
+    const rechargePlans = [
+      { id: 1, name: "₹10 - Talktime", amount: 10, validity: "None" },
+      { id: 2, name: "₹19 - 1GB Data", amount: 19, validity: "1 Day" },
+      { id: 3, name: "₹299 - 1.5GB/Day", amount: 299, validity: "28 Days" },
+      { id: 4, name: "₹749 - 2GB/Day", amount: 749, validity: "84 Days" },
+    ];
+
+    // Load plans into the dropdown
+    const planSelect = document.getElementById("plan");
+    rechargePlans.forEach((plan) => {
+      const option = document.createElement("option");
+      option.value = plan.id;
+      option.textContent = `${plan.name} (₹${plan.amount}) - Validity: ${plan.validity}`;
+      planSelect.appendChild(option);
+    });
+
+    // Handle Recharge Form Submission
+    document.getElementById("rechargeForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+
+      const mobileNumber = document.getElementById("mobileNumber").value;
+      const operator = document.getElementById("operator").value;
+      const planId = document.getElementById("plan").value;
+
+      // Validate Mobile Number
+      if (!/^\d{10}$/.test(mobileNumber)) {
+        document.getElementById("mobileError").textContent = "Please enter a valid 10-digit mobile number.";
+        return;
+      } else {
+        document.getElementById("mobileError").textContent = "";
+      }
+
+      // Validate Operator
+      if (!operator) {
+        document.getElementById("operatorError").textContent = "Please select an operator.";
+        return;
+      } else {
+        document.getElementById("operatorError").textContent = "";
+      }
+
+      // Validate Plan
+      if (!planId) {
+        document.getElementById("planError").textContent = "Please select a plan.";
+        return;
+      } else {
+        document.getElementById("planError").textContent = "";
+      }
+
+      // Hide recharge form and show payment form
+      document.getElementById("rechargeForm").style.display = "none";
+      document.getElementById("paymentForm").style.display = "block";
+    });
+
+    // Handle Payment Form Submission
+    document.getElementById("upiForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+
+      const upiPin = document.getElementById("upiPin").value;
+
+      // Validate UPI PIN
+      if (upiPin !== "111") {
+        document.getElementById("upiError").textContent = "Invalid UPI PIN. Please try again.";
+        return;
+      } else {
+        document.getElementById("upiError").textContent = "";
+      }
+
+      // Show success message
+      document.getElementById("statusMessage").textContent = "Payment successful! Recharge done.";
+      document.getElementById("paymentStatus").style.display = "block";
+      document.getElementById("paymentForm").style.display = "none";
+
+      // Save transaction to localStorage
+      const mobileNumber = document.getElementById("mobileNumber").value;
+      const operator = document.getElementById("operator").value;
+      const planId = document.getElementById("plan").value;
+      const selectedPlan = rechargePlans.find((plan) => plan.id == planId);
+
+      const transaction = {
+        mobileNumber,
+        operator,
+        plan: selectedPlan.name,
+        amount: selectedPlan.amount,
+        date: new Date().toLocaleString(),
+      };
+
+      saveTransaction(transaction);
+
+      // Refresh transaction history
+      loadTransactionHistory();
+    });
+
+    // Handle Go Back Button
+    document.getElementById("goBack").addEventListener("click", () => {
+      document.getElementById("rechargeForm").style.display = "block";
+      document.getElementById("paymentForm").style.display = "none";
+      document.getElementById("paymentStatus").style.display = "none";
+    });
+
+    // Save Transaction to localStorage
+    function saveTransaction(transaction) {
+      let transactions = JSON.parse(localStorage.getItem("transactions")) || [];
+      transactions.push(transaction);
+      localStorage.setItem("transactions", JSON.stringify(transactions));
+    }
+
+    // Load Transaction History
+    function loadTransactionHistory() {
+      const transactions = JSON.parse(localStorage.getItem("transactions")) || [];
+      const tbody = document.querySelector("#transactionHistory tbody");
+      tbody.innerHTML = "";
+
+      transactions.forEach((transaction) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${transaction.mobileNumber}</td>
+          <td>${transaction.operator}</td>
+          <td>${transaction.plan}</td>
+          <td>₹${transaction.amount}</td>
+          <td>${transaction.date}</td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    // Function to download transaction history as Excel
+    function downloadExcel() {
+      const transactions = JSON.parse(localStorage.getItem("transactions")) || [];
+      if (transactions.length === 0) {
+        alert("No transactions found!");
+        return;
+      }
+
+      // Create a worksheet
+      const worksheet = XLSX.utils.json_to_sheet(transactions);
+
+      // Create a workbook
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Transactions");
+
+      // Generate Excel file and trigger download
+      XLSX.writeFile(workbook, "transaction_history.xlsx");
+    }
+
+    // Handle Download History Button Click
+    document.getElementById("downloadHistory").addEventListener("click", downloadExcel);
+
+    // Load transaction history on page load
+    loadTransactionHistory();
+  </script>
+</body>
+</html>
